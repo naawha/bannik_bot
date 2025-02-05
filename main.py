@@ -14,7 +14,27 @@ def increment_count(chat_id):
     if row:
         cursor.execute('UPDATE counters SET count=' + str(row[2]+1) + ' WHERE chat_id='+str(chat_id)+';')
         connection.commit()
-    return row[2]+1
+        return row[2]+1
+    else:
+        cursor.execute('INSERT INTO counters (chat_id, "count") VALUES (?, ?);', (chat_id, 1))
+        connection.commit()
+        return 1
+
+
+def decrement_count(chat_id):
+    cursor.execute('SELECT * FROM counters WHERE chat_id='+str(chat_id)+';')
+    row = cursor.fetchone()
+    if row:
+        if row[2] == 1:
+            cursor.execute('DELETE FROM counters WHERE chat_id='+str(chat_id)+';')
+            connection.commit()
+            return 0
+        else:
+            cursor.execute('UPDATE counters SET count=' + str(row[2]-1) + ' WHERE chat_id='+str(chat_id)+';')
+            connection.commit()
+            return row[2]-1
+    else:
+        return -1
 
 
 def get_count(chat_id):
@@ -32,11 +52,15 @@ bannik_count_messages = [
     "Сколько раз мы посещали баню?".lower()
 ]
 
-
 bannik_increment_messages = [
     "Мы сходили в баню".lower(),
     "Мы сходили в баню!".lower(),
     "А ниче то что мы сходили в баню?".lower(),
+]
+
+bannik_decrement_messages = [
+    "Мы соврали, что ходили в баню".lower(),
+    "Мы соврали насчет похода в баню".lower(),
 ]
 
 
@@ -61,6 +85,15 @@ async def bannik_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif message.lower() in bannik_increment_messages:
         new_count = increment_count(update.message.chat_id)
         await update.message.reply_text("Поздравляю! Это был ваш "+str(new_count)+"-й поход в баню")
+    elif message.lower() in bannik_decrement_messages:
+        new_count = decrement_count(update.message.chat_id)
+        if new_count == -1:
+            await update.message.reply_text("А вы и не говорили, что ходили в баню!")
+        elif new_count == 0:
+            await update.message.reply_text("Получается, вы вообще ни разу не были в бане?")
+        else:
+            await update.message.reply_text("Значит вы ходили в баню всего "+ str(new_count) + " " + declensions(new_count, ["раз", "раза", "раз"]))
+
 
 
 def main() -> None:
